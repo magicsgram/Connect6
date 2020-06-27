@@ -1,0 +1,48 @@
+@page "/admin/{AdminKey}"
+@using Microsoft.AspNetCore.SignalR.Client
+@inject NavigationManager NavigationManager
+@implements IDisposable
+
+<p><button @onclick="ParkAndExit" disabled="@(!IsConnected)">Park and Exit</button></p>
+
+<ul style="font-family: 'Courier New', Courier, monospace; font-size: 80%;">
+  @foreach (var serverLog in serverLogs)
+  {
+    <li>@serverLog</li>
+  }
+</ul>
+
+@code {
+  private HubConnection hubConnection;
+
+    [Parameter]
+  public String AdminKey { get; set; }
+
+  private List<String> serverLogs = new List<String>();
+
+  protected override async Task OnInitializedAsync()
+  {
+    hubConnection = new HubConnectionBuilder()
+      .WithUrl(NavigationManager.ToAbsoluteUri("/connect6hub"))
+      .Build();
+
+    hubConnection.On<List<String>>("ServerLogReceived", (serverLogs) =>
+    {
+      this.serverLogs = serverLogs;
+      StateHasChanged();
+    });
+
+    await hubConnection.StartAsync();
+    await hubConnection.SendAsync("RegisterAdminConnection");
+  }
+
+  Task ParkAndExit() => hubConnection.SendAsync("ParkAndExit", AdminKey);
+
+  public Boolean IsConnected =>
+    hubConnection.State == HubConnectionState.Connected;
+
+  public void Dispose()
+  {
+    _ = hubConnection.DisposeAsync();
+  }
+}

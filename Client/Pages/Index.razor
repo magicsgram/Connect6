@@ -1,0 +1,45 @@
+﻿@page "/"
+@using Microsoft.AspNetCore.SignalR.Client
+@inject NavigationManager NavigationManager
+@implements IDisposable
+
+<p><button @onclick="CreateNewGame_enUS" disabled="@(!IsConnected)">Create new game (English)</button></p>
+<p><button @onclick="CreateNewGame_koKR" disabled="@(!IsConnected)">새 게임 시작하기 (한국어)</button></p>
+
+@code {
+  private HubConnection hubConnection;
+
+  private String languageCode = "";
+
+  protected override async Task OnInitializedAsync()
+  {
+    hubConnection = new HubConnectionBuilder()
+      .WithUrl(NavigationManager.ToAbsoluteUri("/connect6hub"))
+      .Build();
+
+    // Force load page. There's a problem w/ loading soundfiles when use regular path novigation.
+    hubConnection.On<String>("NewGameIdReceived", (gameId) => NavigationManager.NavigateTo($"game/{gameId}?lang={languageCode}", true));
+
+    await hubConnection.StartAsync();
+  }
+
+  Task CreateNewGame_enUS()
+  {
+    languageCode = "en-us";
+    return hubConnection.SendAsync("CreateNewGame");
+  }
+
+  Task CreateNewGame_koKR()
+  {
+    languageCode = "ko-kr";
+    return hubConnection.SendAsync("CreateNewGame");
+  }
+
+  public Boolean IsConnected =>
+      hubConnection.State == HubConnectionState.Connected;
+
+  public void Dispose()
+  {
+    _ = hubConnection.DisposeAsync();
+  }
+}
